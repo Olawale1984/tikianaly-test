@@ -3,31 +3,31 @@ import "reflect-metadata";
 import express, { NextFunction, Request } from "express";
 import dotenv from "dotenv";
 import adminRoute from "./routes/adminRoutes";
-import { getDbConnection } from "./dbConfig";
+import { createPool } from "./dbConfig";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const pool = createPool(); // Create connection pool at startup
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 
 interface CustomRequest extends Request {
   db?: any;
 }
 
-
 app.use(async (req: CustomRequest, res, next) => {
   try {
-    req.db = await getDbConnection();
+    req.db = await pool.getConnection();
     next();
   } catch (error) {
     next(error);
+  } finally {
+    if (req.db) req.db.release(); // Release connection back to pool
   }
 });
-
 app.get("/", (_, res) => {
   res.send("Welcome to the Tikianaly API");
 });
@@ -48,15 +48,18 @@ app.use((error: any, req: express.Request, res: express.Response, next: NextFunc
 
 
 const startServer = async () => {
-  
   try {
-    await getDbConnection();
+    // Test connection at startup
+    const testConn = await pool.getConnection();
+    testConn.release();
+    
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`🚀 Server Running here 👉 http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("❌ Server startup failed due to database error:", error);
+    process.exit(1);
   }
 };
 
