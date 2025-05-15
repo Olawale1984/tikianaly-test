@@ -1,13 +1,24 @@
+// dbConfig.ts
 import * as mysql from "mysql2/promise";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const dbConfig = {
+interface DBConfig {
+  host: string;
+  user: string;
+  password: string;
+  database: string;
+  connectionLimit?: number;
+}
+
+const dbConfig: DBConfig = {
   host: process.env.DB_HOST || "",
   user: process.env.DB_USER || "",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "",
+  connectionLimit: process.env.DB_CONNECTION_LIMIT ? 
+    parseInt(process.env.DB_CONNECTION_LIMIT) : 10
 };
 
 export const getDbConnection = async () => {
@@ -17,6 +28,10 @@ export const getDbConnection = async () => {
     return connection;
   } catch (error) {
     console.error("❌ Database connection failed:", error);
-    process.exit(1);
+    throw error; // Don't exit process, let the server handle it
   }
+};
+
+export const createPool = () => {
+  return mysql.createPool(dbConfig);
 };
